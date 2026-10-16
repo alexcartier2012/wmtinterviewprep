@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interview Prep Builder</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <script src="config/roles.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Interview Prep Builder</h1>
+      <p class="sub">Pick the role, add logistics, paste the JD and resume. Get a prep doc you can send the candidate.</p>
+    </div>
+    <button type="button" class="ghost" id="settingsBtn" aria-expanded="false" aria-controls="settings">AI settings</button>
+  </header>
+
+  <section id="settings" class="card settings" hidden>
+    <h2>Claude enhancement (optional)</h2>
+    <p class="hint">The basic prep runs entirely in your browser. Add an Anthropic API key to have Claude write a fuller, tailored version. The key is stored only in this browser. Resume and JD text are sent to the Anthropic API when you click <b>Enhance with Claude</b>; follow your company's policy on candidate data.</p>
+    <div class="grid2">
+      <label>API key
+        <input type="password" id="apiKey" autocomplete="off" placeholder="sk-ant-...">
+      </label>
+      <label>Model
+        <select id="model">
+          <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster, cheaper)</option>
+          <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" id="saveKey">Save</button>
+      <button type="button" class="ghost" id="clearKey">Forget key</button>
+      <span id="keyStatus" class="hint"></span>
+    </div>
+  </section>
+
+  <main class="layout">
+    <form id="form" class="card form" autocomplete="off">
+      <fieldset>
+        <legend>Role</legend>
+        <div class="grid2">
+          <label class="span2">Role
+            <select id="role" required></select>
+          </label>
+          <label>Level
+            <select id="level">
+              <option value="entry">Entry / Associate</option>
+              <option value="mid" selected>Mid</option>
+              <option value="senior">Senior</option>
+              <option value="staff">Staff / Principal / Lead</option>
+            </select>
+          </label>
+          <label>Round
+            <select id="round"></select>
+          </label>
+          <label>Client
+            <input id="client" type="text">
+          </label>
+          <label>Team / business area
+            <input id="team" type="text" placeholder="e.g. Supply chain, Sam's Club, e-comm search">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Logistics</legend>
+        <div class="grid2">
+          <label>Candidate name
+            <input id="candidate" type="text">
+          </label>
+          <label>Interviewer(s)
+            <input id="interviewers" type="text" placeholder="Name, title">
+          </label>
+          <label>Date
+            <input id="date" type="date">
+          </label>
+          <label>Time
+            <div class="inline">
+              <input id="time" type="time">
+              <select id="tz" aria-label="Time zone">
+                <option>CT</option><option>ET</option><option>MT</option><option>PT</option><option>IST</option>
+              </select>
+            </div>
+          </label>
+          <label>Duration
+            <select id="duration">
+              <option>30 min</option><option>45 min</option><option selected>60 min</option><option>90 min</option><option>2+ hours</option>
+            </select>
+          </label>
+          <label>Format
+            <select id="format">
+              <option>Video</option><option>Phone</option><option>Onsite</option>
+            </select>
+          </label>
+          <label class="span2">Meeting link / platform / address
+            <input id="where" type="text" placeholder="Teams link, Zoom, or office address">
+          </label>
+          <label class="span2">Recruiter contact (for day-of issues)
+            <input id="recruiter" type="text" placeholder="Name · phone · email">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Inputs</legend>
+        <label>Job description
+          <textarea id="jd" rows="8" placeholder="Paste the full JD"></textarea>
+        </label>
+        <label>Candidate resume
+          <textarea id="resume" rows="8" placeholder="Paste resume text"></textarea>
+        </label>
+        <label class="file">or load a .txt / .md file
+          <input id="resumeFile" type="file" accept=".txt,.md,text/plain">
+        </label>
+        <label>Notes from AM / hiring manager / past debriefs
+          <textarea id="notes" rows="4" placeholder="e.g. HM cares a lot about Kafka. Last candidate failed the system design round. Expect HackerRank link 24h before."></textarea>
+        </label>
+        <label class="check">
+          <input id="internal" type="checkbox">
+          Include internal recruiter section (match score, gaps). Leave off for the candidate copy.
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" id="generate">Generate prep</button>
+        <button type="button" id="enhance" class="accent" disabled title="Add an API key in AI settings">Enhance with Claude</button>
+        <button type="button" class="ghost" id="reset">Clear</button>
+      </div>
+    </form>
+
+    <section class="card output" aria-live="polite">
+      <div class="toolbar">
+        <span id="status" class="hint">Nothing generated yet.</span>
+        <div class="row">
+          <button type="button" class="ghost" id="copy" disabled>Copy</button>
+          <button type="button" class="ghost" id="download" disabled>Download .md</button>
+          <button type="button" class="ghost" id="print" disabled>Print / PDF</button>
+        </div>
+      </div>
+      <article id="doc" class="doc">
+        <div class="empty">
+          <p>Your prep doc will appear here.</p>
+          <p class="hint">Tip: the more of the JD you paste, the better the skill matching. AM notes are highlighted in the output.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
