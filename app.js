@@ -29,6 +29,7 @@
     roundSel.value = "technical";
 
     $("client").value = CFG.client.name;
+    roleSel.addEventListener("change", toggleCustomTitle);
 
     $("apiKey").value = load(KEY_STORE) || "";
     $("model").value = load(MODEL_STORE) || "claude-opus-5-5";
@@ -66,6 +67,7 @@
       $("form").reset();
       $("client").value = CFG.client.name;
       $("round").value = "technical";
+      toggleCustomTitle();
     });
 
     $("copy").addEventListener("click", async () => {
@@ -89,6 +91,10 @@
     $("print").addEventListener("click", () => window.print());
   }
 
+  function toggleCustomTitle() {
+    $("customTitleWrap").hidden = $("role").value !== "other";
+  }
+
   function refreshKeyState(msg) {
     const hasKey = !!(load(KEY_STORE) || "").trim();
     $("enhance").disabled = !hasKey;
@@ -100,6 +106,7 @@
     const v = (id) => $(id).value.trim();
     return {
       roleId: v("role"),
+      customTitle: v("role") === "other" ? v("customTitle") : "",
       level: v("level"),
       roundId: v("round"),
       client: v("client") || CFG.client.name,
@@ -147,6 +154,19 @@
     return m ? m[0].replace(/\s+/g, " ") : "";
   }
 
+  // Pull responsibility-style lines out of the JD ("Design and build…", "Partner with…").
+  function responsibilities(jd) {
+    const skip = /\b(years?|degree|bachelor|master'?s|salary|benefits|equal opportunity|visa|sponsorship|location|remote|hybrid|pay range|401k)\b/i;
+    return jd
+      .split(/\r?\n|(?<=\.)\s+(?=[A-Z])/)
+      .map((l) => l.replace(/^[\s•\-*·▪●\d.)]+/, "").trim())
+      .filter((l) => l.length >= 25 && l.length <= 220 && !skip.test(l))
+      .filter((l) => /^[A-Z][a-z]+(s|e|ed|ing)?\b/.test(l) && /^(\w+)/.test(l) && !/^(The|This|We|Our|You|About|Who|What|Walmart|Job|Role|Position|Responsibilities|Requirements|Qualifications|Preferred|Minimum|Senior|Junior)\b/.test(l))
+      .slice(0, 6);
+  }
+
+  const LANGUAGE_SKILLS = ["Java", "Python", "Go", "Node.js", "JavaScript / TypeScript", "SQL", "iOS / Swift", "Android / Kotlin", "Spark"];
+
   function analyze(f) {
     const jdSkills = findSkills(f.jd);
     const resumeSkills = new Set(findSkills(f.resume).map((s) => s.name));
@@ -159,7 +179,8 @@
     gaps.sort(byEmphasis);
     const emphasized = CFG.skills.filter((s) => noteSkills.has(s.name));
     const mentionsCoding = /hackerrank|codesignal|leetcode|live cod|coding (round|test|assessment|exercise)|pair program/i.test(f.jd + " " + f.notes);
-    return { jdSkills, matched, gaps, emphasized, noteSkills, years: yearsAsked(f.jd), mentionsCoding };
+    const jdLanguages = jdSkills.filter((s) => LANGUAGE_SKILLS.includes(s.name)).map((s) => s.name);
+    return { jdSkills, matched, gaps, emphasized, noteSkills, years: yearsAsked(f.jd), mentionsCoding, jdLanguages, duties: responsibilities(f.jd) };
   }
 
   // ---------- markdown builder ----------
@@ -171,12 +192,15 @@
     const a = analyze(f);
     const senior = f.level === "senior" || f.level === "staff";
     const wantsDesign = role.systemDesign && (senior || f.roundId === "design" || f.roundId === "panel");
-    const wantsCoding = (role.coding && role.coding.expected) || a.mentionsCoding;
+    const isOther = f.roleId === "other";
+    // For unlisted roles, a programming language in the JD is a strong hint of a coding round.
+    const wantsCoding = (role.coding && role.coding.expected) || a.mentionsCoding || (isOther && a.jdLanguages.length > 0);
+    const title = isOther ? f.customTitle || "Role from job description" : role.label;
     const first = f.candidate ? f.candidate.split(/\s+/)[0] : "";
     const out = [];
     const L = (s = "") => out.push(s);
 
-    L(`# Interview prep: ${role.label}`);
+    L(`# Interview prep: ${title}`);
     L(`**${f.client}${f.team ? " · " + f.team : ""}** · ${LEVEL_LABEL[f.level]} · ${round.label}`);
     L();
     if (first) L(`Hi ${first}, here's everything you need for your upcoming interview. Read it once now and skim it again the morning of.`);
@@ -257,7 +281,13 @@
         L("**Practice these patterns:**");
         role.coding.topics.forEach((t) => L(`- ${t}`));
       } else {
-        L("The JD or team notes mention a coding exercise. Confirm the format and language with your recruiter.");
+        L(a.mentionsCoding
+          ? "The JD or team notes mention a coding exercise. Confirm the format and language with your recruiter."
+          : "The JD lists programming skills, so a hands-on or coding question is possible. Confirm the format with your recruiter.");
+        if (a.jdLanguages.length) {
+          L();
+          L(`**Languages in the JD:** ${a.jdLanguages.join(", ")}`);
+        }
       }
       L();
       L("**How to run a live coding problem:**");
@@ -293,6 +323,12 @@
     role.coreQuestions.forEach((q) => L(`- ${q}`));
     if (senior && role.seniorQuestions && !wantsDesign) role.seniorQuestions.forEach((q) => L(`- ${q}`));
     L();
+    if (a.duties.length) {
+      L("### From the JD responsibilities");
+      L("Have a specific example ready for each of these. Interviewers often turn them straight into “Tell me about a time…” questions.");
+      a.duties.forEach((d) => L(`- ${esc(d)}`));
+      L();
+    }
     const skillQs = a.matched.concat(a.gaps).slice(0, 8);
     if (skillQs.length) {
       L("### From the JD");
@@ -410,7 +446,7 @@
     ].join(" ");
 
     const user = [
-      `<role_profile>\n${JSON.stringify({ ...role, round, level: LEVEL_LABEL[f.level], team: f.team }, null, 2)}\n</role_profile>`,
+      `<role_profile>\n${JSON.stringify({ ...role, jobTitle: f.customTitle || role.label, round, level: LEVEL_LABEL[f.level], team: f.team }, null, 2)}\n</role_profile>`,
       `<company_values>\n${CFG.client.values.map((v) => v.name).join("\n")}\n</company_values>`,
       `<job_description>\n${f.jd || "(not provided)"}\n</job_description>`,
       `<resume>\n${f.resume || "(not provided)"}\n</resume>`,

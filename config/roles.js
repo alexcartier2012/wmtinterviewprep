@@ -426,10 +426,38 @@ window.PREP_CONFIG = {
         "How many teams would I support?",
       ],
     },
+
+    // Catch-all for roles not listed above. Most of this prep is driven by the
+    // JD: skills, responsibilities and any coding/assessment mentions.
+    other: {
+      label: "Other (not listed — uses the JD)",
+      family: "general",
+      summary: "A role not covered by the standard profiles. This prep is built mostly from the job description, so read the JD closely and confirm the interview format with your recruiter.",
+      loop: "Varies by team. Ask the AM how many rounds, who you'll meet, and whether there is a coding, case study or presentation component.",
+      coding: { expected: false },
+      systemDesign: false,
+      prepTopics: ["Every tool and technology named in the JD", "The main responsibilities in the JD, with one example for each", "The team's business area and how it serves customers", "Your resume, bullet by bullet"],
+      coreQuestions: [
+        "Walk me through your background and why this role is a fit.",
+        "Tell me about the project on your resume you're most proud of. What was your part?",
+        "What does a typical week look like in your current role?",
+        "Tell me about a time you had to learn a new tool or process quickly.",
+        "How do you prioritize when several people need something from you at once?",
+      ],
+      seniorQuestions: [
+        "Tell me about a time you led an initiative across multiple teams.",
+        "How have you mentored or developed others?",
+      ],
+      questionsToAsk: [
+        "What are the top priorities for this role in the next six months?",
+        "How does this role work with the rest of the team day to day?",
+      ],
+    },
   },
 
   /*
-   * Skill dictionary. `match` is a list of case-insensitive keywords/phrases
+   * Skill dictionary.
+   * (The "other" role above is the catch-all: its prep leans on the JD.) `match` is a list of case-insensitive keywords/phrases
    * looked for in the JD and resume. Add new tech here as it shows up in JDs.
    */
   skills: [
